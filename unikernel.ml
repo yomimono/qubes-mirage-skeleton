@@ -15,7 +15,7 @@ let rec first_v4 = function
     | None -> first_v4 xs
     | Some ipv4 -> Some ipv4
 
-module Main (Stack : V1_LWT.STACKV4 with type IPV4.prefix = Ipaddr.V4.t) = struct
+module Main (Stack : V1_LWT.STACKV4 with type IPV4.prefix = Ipaddr.V4.t) (Clock: V1.MCLOCK) = struct
   module Resolver = Dns_resolver_mirage.Make(OS.Time)(Stack)
 
   let get_required qubesDB key =
@@ -25,9 +25,9 @@ module Main (Stack : V1_LWT.STACKV4 with type IPV4.prefix = Ipaddr.V4.t) = struc
       Log.info (fun f -> f "QubesDB %S = %S" key v);
       v
 
-  let start stack =
+  let start stack clock =
     Log.info (fun f -> f "Starting");
-    let start_time = Clock.time () in
+    let start_time = Clock.elapsed_ns clock in
     (* Start qrexec agent, GUI agent and QubesDB agent in parallel *)
     let qrexec = RExec.connect ~domid:0 () in
     let gui = GUI.connect ~domid:0 () in
@@ -39,8 +39,8 @@ module Main (Stack : V1_LWT.STACKV4 with type IPV4.prefix = Ipaddr.V4.t) = struc
     Lwt.async (fun () -> GUI.listen gui);
     qubesDB >>= fun qubesDB ->
     Log.info (fun f ->
-      f "agents connected in %.3f s (CPU time used since boot: %.3f s)"
-        (Clock.time () -. start_time) (Sys.time ()));
+      f "agents connected in %Lu ns (CPU time used since boot: %.3f s)"
+        (Int64.sub (Clock.elapsed_ns clock) start_time) (Sys.time ()));
     Lwt.async (fun () ->
       OS.Lifecycle.await_shutdown_request () >>= fun (`Poweroff | `Reboot) ->
       RExec.disconnect qrexec

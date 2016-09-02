@@ -4,7 +4,7 @@ let main =
   foreign
     ~libraries:["mirage-qubes"; "dns.mirage"]
     ~packages:["mirage-qubes"; "dns"]
-    "Unikernel.Main" (stackv4 @-> job)
+    "Unikernel.Main" (stackv4 @-> mclock @-> job)
 
 (* These are dummy values; we'll read the real settings from QubesDB at start-up *)
 let ip_config = {
@@ -14,9 +14,8 @@ let ip_config = {
 }
 
 let stack = direct_stackv4_with_static_ipv4
-    default_console
     (netif "0")
     ip_config
 
 let () =
-  register "qubes-skeleton" ~argv:no_argv [main $ stack]
+  register "qubes-skeleton" ~argv:no_argv [main $ stack $ default_monotonic_clock ]
